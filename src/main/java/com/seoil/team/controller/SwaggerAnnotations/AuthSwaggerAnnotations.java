@@ -10,6 +10,8 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import org.hibernate.validator.constraints.Currency;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -26,6 +28,10 @@ public class AuthSwaggerAnnotations {
                     @ApiResponse(responseCode = "200", description = "회원가입 성공",
                             content = @Content(schema = @Schema(implementation = String.class))),
                     @ApiResponse(responseCode = "400", description = "잘못된 요청 또는 이메일 중복",
+                            content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+                    @ApiResponse(responseCode = "400", description = "유효성 검사 실패",
+                            content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+                    @ApiResponse(responseCode = "400", description = "잘못된 Role 형식",
                             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
             }
     )
@@ -35,7 +41,7 @@ public class AuthSwaggerAnnotations {
                         @ExampleObject(name = "valid", value = """
                            {
                              "email": "user@example.com",
-                             "password": "password123",
+                             "password": "strongPassword123!",
                              "name": "홍길동"
                            }
                            """),
@@ -71,7 +77,7 @@ public class AuthSwaggerAnnotations {
                         @ExampleObject(name = "valid", value = """
                            {
                              "email": "user@example.com",
-                             "password": "password123"
+                             "password": "strongPassword123!"
                            }
                            """),
                         @ExampleObject(name = "invalid", value = """
