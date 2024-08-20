@@ -1,5 +1,6 @@
 package com.seoil.team.controller;
 
+import com.seoil.team.controller.SwaggerAnnotations.AuthSwaggerAnnotations.SignupDocumentation;
 import com.seoil.team.controller.SwaggerAnnotations.AuthSwaggerAnnotations.LoginDocumentation;
 import com.seoil.team.controller.SwaggerAnnotations.AuthSwaggerAnnotations.UserInfoDocumentation;
 import com.seoil.team.dto.request.Auth.LoginRequest;
@@ -34,15 +35,8 @@ public class AuthController {
     private final AuthService authService;
     private final MemberService memberService;
 
+    @SignupDocumentation
     @PostMapping("/signup")
-    @Operation(summary = "회원가입", description = "새로운 사용자를 등록합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "회원가입 성공"),
-            @ApiResponse(responseCode = "400", description = "유효성 검사 실패",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @ApiResponse(responseCode = "400", description = "잘못된 Role 형식",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-    })
     public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
         memberService.registerNewUser(signUpRequest);
         return ResponseEntity.ok("회원가입이 성공적으로 이루어졌습니다");

@@ -25,7 +25,7 @@ public record SignupRequest(
                 minLength = Password.MIN_LENGTH, maxLength = Password.MAX_LENGTH)
         @NotBlank(message = ErrorMessages.PASSWORD_REQUIRED)
         @Size(min = Password.MIN_LENGTH, max = Password.MAX_LENGTH, message = Password.MESSAGE)
-        @Pattern(regexp = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=]).*$", message = ErrorMessages.PASSWORD_PATTERN)
+        @Pattern(regexp = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!]).*$", message = ErrorMessages.PASSWORD_PATTERN)
         String password,
 
         @Schema(description = "사용자 역할", defaultValue = "USER", example = "USER")
