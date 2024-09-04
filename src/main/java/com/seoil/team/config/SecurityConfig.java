@@ -56,11 +56,12 @@ public class SecurityConfig {
         return http.build();
     }
 
-    //추후 프로필로 전환
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://192.168.0.26:3090"));
+        configuration.setAllowedOrigins(
+                List.of("http://192.168.0.26:3090", "http://localhost:3000", "http://localhost:3090"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
