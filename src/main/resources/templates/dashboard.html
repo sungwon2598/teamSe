@@ -116,11 +116,11 @@
         }
         #mermaidDiagram {
             width: 100%;
-            height: 700px; /* 개발서버 다이어그램 높이 */
+            height: 580px; /* 개발서버 다이어그램 높이 */
         }
         #productionMermaidDiagram {
             width: 100%;
-            height: 1200px; /* 운영서버 다이어그램 높이 */
+            height: 1000px; /* 운영서버 다이어그램 높이 */
         }
     </style>
 </head>
@@ -221,58 +221,67 @@
                 </div>
                 <div id="productionArchitectureDiagram" class="collapse show" aria-labelledby="productionArchitectureHeader">
                     <div class="card-body">
-                        <div id="productionMermaidDiagram" data-diagram="graph TD
-                           User((사용자)) --> CF[CloudFront]
-                        CF --> WAF[AWS WAF]
-                        WAF --> S3R[S3 - 리액트 앱]
-                        WAF --> R53[Route 53]
-                        R53 --> ALB[Application Load Balancer]
+                        <div id="productionMermaidDiagram" data-diagram="graph TB
+                                User((사용자)) --> CF[Cloudflare]
+                                CF --> ALB[Application Load Balancer]
 
-                        subgraph &quot;일반 운영 (홈 네트워크)&quot;
-                            ALB --> HS[홈 서버 - API]
-                            HS --> LR[(로컬 Redis)]
-                            HS --> LM[(로컬 MySQL)]
-                            LR --> |전체 & 증분 백업| S3B[S3 백업]
-                            LM --> |전체 & 증분 백업| S3B
-                        end
+                                subgraph &quot;온프레미스 환경 (주 운영)&quot;
+                                    OP[홈 서버]
+                                    subgraph &quot;홈 서버 내부&quot;
+                                        OP_API[API]
+                                        OP_Redis[(Redis)]
+                                        OP_MySQL[(MySQL)]
+                                    end
+                                end
 
-                        subgraph &quot;AWS (비상 상황 - 콜드 스탠바이)&quot;
-                            ALB -.-> ASG[Auto Scaling Group]
-                            ASG -.-> EC2[EC2 인스턴스 - API]
-                            EC2 -.-> ER[(ElastiCache Redis)]
-                            EC2 -.-> RDS[(RDS MySQL)]
-                            S3B[S3 백업]
-                            S3B -.-> |복구| ER
-                            S3B -.-> |복구| RDS
-                        end
+                                subgraph &quot;AWS 환경 (콜드 스탠바이)&quot;
+                                    AWS[AWS 서버]
+                                    subgraph &quot;AWS 서버 내부&quot;
+                                        AWS_API[EC2 t3.xlarge - API]
+                                        AWS_Redis[(EC2 t3.large - Redis)]
+                                        AWS_MySQL[(RDS m5.large - MySQL)]
+                                    end
+                                end
 
-                        CloudWatch{CloudWatch} --> |모니터링 & 경보| Lambda[AWS Lambda]
-                        CloudWatch --> |모니터링| ASG
-                        CloudWatch --> |모니터링| EC2
-                        CloudWatch --> |모니터링| ER
-                        CloudWatch --> |모니터링| RDS
-                        Lambda --> |백업 & 복구 관리| S3B
-                        Lambda --> SNS[SNS]
-                        SNS --> Slack[Slack]
+                                ALB -->|정상 상태| OP_API
+                                ALB -.->|API 서버 장애 시| AWS_API
+                                OP_API --> OP_Redis
+                                OP_API -->|정상 상태| OP_MySQL
+                                AWS_API -.-> |API 서버 장애 시|OP_Redis
+                                AWS_API -.-> OP_MySQL
+                                OP_API -.->|Redis 장애 시| AWS_Redis
+                                OP_API -.->|MySQL 장애 시| AWS_MySQL
+                                AWS_API -->|필요 시| AWS_Redis
+                                AWS_API -->|필요 시| AWS_MySQL
 
-                        style User fill:#f9f,stroke:#333,stroke-width:4px
-                        style CF fill:#ff9,stroke:#333,stroke-width:2px
-                        style WAF fill:#f96,stroke:#333,stroke-width:2px
-                        style S3R fill:#ff9,stroke:#333,stroke-width:2px
-                        style R53 fill:#ff9,stroke:#333,stroke-width:2px
-                        style ALB fill:#ff9,stroke:#333,stroke-width:2px
-                        style HS fill:#9f9,stroke:#333,stroke-width:2px
-                        style LR fill:#9f9,stroke:#333,stroke-width:2px
-                        style LM fill:#9f9,stroke:#333,stroke-width:2px
-                        style S3B fill:#ff9,stroke:#333,stroke-width:2px
-                        style EC2 fill:#9f9,stroke:#333,stroke-width:2px,stroke-dasharray: 5, 5
-                        style ER fill:#9f9,stroke:#333,stroke-width:2px,stroke-dasharray: 5, 5
-                        style RDS fill:#9f9,stroke:#333,stroke-width:2px,stroke-dasharray: 5, 5
-                        style ASG fill:#ff9,stroke:#333,stroke-width:2px,stroke-dasharray: 5, 5
-                        style Lambda fill:#f96,stroke:#333,stroke-width:2px
-                        style CloudWatch fill:#69f,stroke:#333,stroke-width:2px
-                        style SNS fill:#f96,stroke:#333,stroke-width:2px
-                        style Slack fill:#f9f,stroke:#333,stroke-width:4px"></div>
+                                subgraph &quot;모니터링 & 제어&quot;
+                                    CW[CloudWatch]
+                                    Lambda[AWS Lambda]
+                                end
+
+                                CW --> OP
+                                CW --> AWS
+                                Lambda -->|장애 감지 & 전환| ALB
+
+                                subgraph &quot;데이터 동기화&quot;
+                                    DMS[EC2 t3.micro - MySQL]
+                                    RS[EC2 t2.micro swap 8gb - Redis]
+                                end
+
+                                OP_MySQL -->|복제| DMS
+                                DMS --> AWS_MySQL
+                                OP_Redis -->|복제| RS
+                                RS -->|복원| AWS_Redis
+
+                                VPN{Site-to-Site VPN}
+                                OP <--> VPN <--> AWS
+
+                                classDef onprem fill:#f9f,stroke:#333,stroke-width:2px;
+                                classDef aws fill:#ff9,stroke:#333,stroke-width:2px;
+                                classDef network fill:#0f6,stroke:#333,stroke-width:2px;
+                                class OP,OP_API,OP_Redis,OP_MySQL onprem;
+                                class AWS_API,AWS_Redis,AWS_MySQL,CW,Lambda,DMS,RS aws;
+                                class ALB,VPN network;"></div>
                     </div>
                 </div>
             </div>

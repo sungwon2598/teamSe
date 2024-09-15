@@ -6,6 +6,7 @@ import com.seoil.team.security.jwt.JwtTokenProvider;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -33,6 +34,21 @@ public class SecurityConfig {
     private final JwtTokenProvider jwtTokenProvider;
     private final AuthenticationConfiguration authenticationConfiguration;
 
+//    @Value("${cors.allowed-origins}")
+//    private List<String> allowedOrigins;
+//
+//    @Value("${cors.allowed-methods}")
+//    private List<String> allowedMethods;
+//
+//    @Value("${cors.allowed-headers}")
+//    private List<String> allowedHeaders;
+//
+//    @Value("${cors.allow-credentials}")
+//    private boolean allowCredentials;
+//
+//    @Value("${cors.max-age}")
+//    private long maxAge;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -44,7 +60,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**", "/css/**", "/js/**", "/*.ico", "/dashboard",
                                 "/webjars/**", "/swagger-ui.html", "/swagger-ui/**", "/actuator/**",
                                 "/mermaid/**", "/api/mermaid/**",
-                                "/api-docs/**", "/v3/api-docs/**").permitAll()
+                                "/api-docs/**", "/v3/api-docs/**", "/result", "/",
+                                "/video", "/signal", "/vid", // 추가된 부분
+                                "/error", "/roadmap/**" // 에러 페이지도 허용
+                        ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(authenticationManager(authenticationConfiguration),
