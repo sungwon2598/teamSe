@@ -32,7 +32,7 @@ public class MemberService implements UserDetailsService {
             throw new EmailAlreadyExistsException(email);
         }
     }
-    //test
+    //test1
     private Member createMemberFromRequest(SignupRequest signUpRequest) {
         return Member.builder()
                 .name(signUpRequest.name())
