@@ -1,19 +1,24 @@
 package com.seoil.team.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.seoil.team.dto.request.ai.RoadmapRequest;
 import com.seoil.team.dto.request.ai.WeeklyRoadmapResponse;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
+import org.springframework.http.*;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@Slf4j
 @Service
 public class WeeklyRoadmapGeneratorService {
 
@@ -31,10 +36,15 @@ public class WeeklyRoadmapGeneratorService {
         this.objectMapper = objectMapper;
     }
 
-    public WeeklyRoadmapResponse generateWeeklyRoadmap(RoadmapRequest request) {
-        String prompt = createPrompt(request);
-        String apiResponse = callOpenAIAPI(prompt);
-        return parseResponse(apiResponse);
+    @Async
+    public CompletableFuture<WeeklyRoadmapResponse> generateWeeklyRoadmapAsync(RoadmapRequest request) {
+        return CompletableFuture.supplyAsync(() -> {
+            String prompt = createPrompt(request);
+            String apiResponse = callOpenAIAPI(prompt);
+            log.info("Raw API Response (first 1000 characters): {}",
+                    apiResponse.length() > 1000 ? apiResponse.substring(0, 1000) + "..." : apiResponse);
+            return parseResponse(apiResponse);
+        });
     }
 
     private String createPrompt(RoadmapRequest request) {
@@ -67,36 +77,63 @@ public class WeeklyRoadmapGeneratorService {
         headers.setBearerAuth(apiKey);
 
         Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("model", "gpt-4o");
-        requestBody.put("messages", new Object[]{
+        requestBody.put("model", "gpt-3.5-turbo");
+        requestBody.put("messages", List.of(
                 Map.of("role", "system", "content", "You are a project management expert."),
                 Map.of("role", "user", "content", prompt)
-        });
+        ));
         requestBody.put("temperature", 0.7);
 
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
 
-        Map<String, Object> response = restTemplate.postForObject(apiUrl, request, Map.class);
-        return ((Map<String, String>) ((Map<String, Object>) ((java.util.ArrayList<?>) response.get("choices")).get(
-                0)).get("message")).get("content");
+        ResponseEntity<String> response = restTemplate.postForEntity(apiUrl, request, String.class);
+
+        if (response.getStatusCode().is2xxSuccessful()) {
+            return response.getBody();
+        } else {
+            log.error("API call failed. Status: {}, Body: {}", response.getStatusCode(), response.getBody());
+            throw new RuntimeException("API call failed with status: " + response.getStatusCode());
+        }
+    }
+
+    private String preprocessResponse(String apiResponse) {
+        // 백틱과 다른 잠재적으로 문제가 될 수 있는 문자 제거
+        String preprocessed = apiResponse.replaceAll("[`\u0000-\u001F]", "").trim();
+        log.info("Preprocessed response (first 1000 characters): {}",
+                preprocessed.length() > 1000 ? preprocessed.substring(0, 1000) + "..." : preprocessed);
+        return preprocessed;
+    }
+
+    private boolean isValidJson(String json) {
+        try {
+            objectMapper.readTree(json);
+            return true;
+        } catch (JsonProcessingException e) {
+            return false;
+        }
     }
 
     private WeeklyRoadmapResponse parseResponse(String apiResponse) {
         try {
-            Map<String, Object> responseMap = objectMapper.readValue(apiResponse, new TypeReference<Map<String, Object>>() {});
-            List<Map<String, Object>> weeklyPlans = (List<Map<String, Object>>) responseMap.get("weeklyPlans");
-            List<String> overallTips = (List<String>) responseMap.get("overallTips");
-            String curriculumEvaluation = (String) responseMap.get("curriculumEvaluation");
+            JsonNode rootNode = objectMapper.readTree(apiResponse);
+            String content = rootNode.path("choices").get(0).path("message").path("content").asText();
+
+            JsonNode contentNode = objectMapper.readTree(content);
+
+            List<Map<String, Object>> weeklyPlans = objectMapper.convertValue(contentNode.get("weeklyPlans"), new TypeReference<List<Map<String, Object>>>() {});
+            List<String> overallTips = objectMapper.convertValue(contentNode.get("overallTips"), new TypeReference<List<String>>() {});
+            String curriculumEvaluation = contentNode.get("curriculumEvaluation").asText();
 
             Map<Integer, String> weeklyDescriptions = new HashMap<>();
             for (Map<String, Object> plan : weeklyPlans) {
-                int week = (int) plan.get("week");
+                int week = ((Integer) plan.get("week")).intValue();
                 String description = (String) plan.get("description");
                 weeklyDescriptions.put(week, description);
             }
 
             return new WeeklyRoadmapResponse(weeklyDescriptions, overallTips, curriculumEvaluation);
         } catch (Exception e) {
+            log.error("Error parsing API response: {}", apiResponse, e);
             throw new RuntimeException("Failed to parse API response", e);
         }
     }
