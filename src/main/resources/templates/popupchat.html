@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Popup Chat</title>
+  <!-- SockJS 및 StompJS 라이브러리 추가 -->
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.5.1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</head>
+<body>
+<h1>팝업 채팅</h1>
+
+<!-- 참여자 목록 영역 -->
+<div id="user-list-container">
+  <h3>현재 접속자</h3>
+  <div id="user-list"></div>
+</div>
+</div>
+
+<!-- 채팅 메시지 표시 영역 -->
+<div id="chat-messages"></div>
+
+<!-- 채팅 입력 영역 -->
+<input type="text" id="chat-input" placeholder="메시지 입력...">
+<button onclick="sendMessage()">메시지 보내기</button>
+<button onclick="leaveChat()">나가기</button>
+
+<script>
+  var stompClient = null;
+  var userName = null;
+
+  function connect() {
+    var socket = new SockJS('/ws');  // SockJS 사용
+    stompClient = Stomp.over(socket);
+    stompClient.connect({}, function (frame) {
+      console.log('Connected: ' + frame);
+
+      // 채팅방 메시지 구독
+      stompClient.subscribe('/topic/public', function (message) {
+        showMessage(JSON.parse(message.body));
+      });
+
+      // 채팅방 참여자 목록 구독
+      stompClient.subscribe('/topic/users', function (message) {
+        updateUserList(JSON.parse(message.body));
+      });
+
+      // JOIN 메시지 보내기
+      stompClient.send("/app/chat.sendMessage", {}, JSON.stringify({ sender: userName, content: '', type: "JOIN" }));
+    });
+  }
+
+  // 채팅방 입장 시 사용자 이름 입력 받기
+  window.onload = function() {
+    userName = prompt("이름을 입력하세요:");
+    if (userName) {
+      connect();  // 이름 입력 후 WebSocket 연결
+
+      document.getElementById('chat-input').addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+          sendMessage();  // 엔터 키를 누르면 메시지 전송
+        }
+      });
+
+    } else {
+      alert("이름을 입력해야 합니다.");
+      window.close();
+    }
+  };
+
+  // 메시지 전송 함수
+  function sendMessage() {
+    var content = document.getElementById('chat-input').value;
+    if (content.trim() !== '') {
+      stompClient.send("/app/chat.sendMessage", {}, JSON.stringify({sender: userName, content: content, type: "CHAT"}));
+      document.getElementById('chat-input').value = '';
+    }
+  }
+
+  // 채팅방 나가기
+  function leaveChat() {
+    // LEAVE 메시지 전송
+    stompClient.send("/app/chat.sendMessage", {}, JSON.stringify({ sender: userName, content: '', type: "LEAVE" }));
+    window.close();  // 팝업 창 닫기
+  }
+
+  // 메시지 화면에 표시
+  function showMessage(message) {
+    var chatMessages = document.getElementById('chat-messages');
+    var messageElement = document.createElement('p');
+    messageElement.textContent = message.sender + ": " + message.content;
+    chatMessages.appendChild(messageElement);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  // 사용자 목록 업데이트
+  function updateUserList(userList) {
+    var userListDiv = document.getElementById('user-list');
+    userListDiv.innerHTML = '';  // 기존 목록 초기화
+    userList.forEach(function(user) {
+      var userElement = document.createElement('p');
+      userElement.textContent = user;
+      userListDiv.appendChild(userElement);
+    });
+  }
+</script>
+</body>
+</html>

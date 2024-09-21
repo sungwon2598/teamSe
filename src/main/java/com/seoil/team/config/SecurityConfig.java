@@ -62,7 +62,8 @@ public class SecurityConfig {
                                 "/mermaid/**", "/api/mermaid/**",
                                 "/api-docs/**", "/v3/api-docs/**", "/result", "/",
                                 "/video", "/signal", "/vid", // 추가된 부분
-                                "/error", "/roadmap/**" // 에러 페이지도 허용
+                                "/error", "/roadmap/**", // 에러 페이지도 허용
+                                "/app/**","/whiteboard/**", "/popupchat/**", "/ws/**", "/topic/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
