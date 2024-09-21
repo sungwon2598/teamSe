@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Whiteboard with Voice Chat</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+    .menu {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background-color: #f0f0f0;
+      padding: 10px;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    canvas {
+      border: 1px solid #000;
+      margin-top: 50px;
+      display: block;
+      margin: 0 auto;
+    }
+    .voice-controls {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background-color: #f0f0f0;
+      padding: 10px;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      display: none;
+    }
+    .voice-controls button {
+      margin-right: 5px;
+    }
+  </style>
+</head>
+<body>
+<!-- 왼쪽 상단 메뉴바 -->
+<div class="menu">
+  <ul>
+    <li><a href="javascript:openChatPopup()">텍스트 채팅</a></li>
+    <li><a href="javascript:startVoiceChat()">음성 채팅</a></li>
+  </ul>
+</div>
+
+<!-- 음성 채팅 컨트롤 (오른쪽 상단) -->
+<div class="voice-controls" id="voiceControls">
+  <button id="muteButton" onclick="toggleMute()">🔊 마이크 끄기</button>
+  <button onclick="leaveVoiceChat()">나가기</button>
+</div>
+
+<!-- 화이트보드 영역 -->
+<canvas id="whiteboard" width="1200" height="800"></canvas>
+
+
+<script>
+  var canvas = document.getElementById('whiteboard');
+  var ctx = canvas.getContext('2d');
+  var stompClient = null;
+  var drawing = false;
+  var mediaRecorder = null;
+  var isMuted = false;
+  var localStream = null;
+
+  // 화이트보드에 그리기
+  function getMousePos(canvas, evt) {
+    var rect = canvas.getBoundingClientRect();
+    return {
+      x: evt.clientX - rect.left,
+      y: evt.clientY - rect.top
+    };
+  }
+
+  canvas.addEventListener('mousedown', function (e) {
+    drawing = true;
+    var pos = getMousePos(canvas, e);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+    sendWhiteboardData('draw', pos.x, pos.y, 'black', 2);
+  });
+
+  canvas.addEventListener('mousemove', function (e) {
+    if (drawing) {
+      var pos = getMousePos(canvas, e);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+      sendWhiteboardData('draw', pos.x, pos.y, 'black', 2);
+    }
+  });
+
+  canvas.addEventListener('mouseup', function (e) {
+    drawing = false;
+  });
+
+  function sendWhiteboardData(action, x, y, color, size) {
+    var data = {
+      user: 'User',
+      action: action,
+      x: x,
+      y: y,
+      color: color,
+      size: size
+    };
+    stompClient.send("/app/whiteboard.update", {}, JSON.stringify(data));
+  }
+
+  window.onload = function () {
+    var socket = new SockJS('/ws');
+    stompClient = Stomp.over(socket);
+    stompClient.connect({}, function (frame) {
+      stompClient.subscribe('/topic/whiteboard', function (message) {
+        drawOnWhiteboard(JSON.parse(message.body));
+      });
+    });
+  };
+
+  function drawOnWhiteboard(data) {
+    if (data.action === 'draw') {
+      ctx.lineTo(data.x, data.y);
+      ctx.strokeStyle = data.color;
+      ctx.lineWidth = data.size;
+      ctx.stroke();
+    }
+  }
+
+
+  // 텍스트 채팅 팝업 창 열기
+  function openChatPopup() {
+    window.open('/popupchat', '채팅창', 'width=800,height=600');
+  }
+
+  function startVoiceChat() {
+    navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
+              localStream = stream;
+              mediaRecorder = new MediaRecorder(stream);
+              mediaRecorder.start();
+
+              mediaRecorder.ondataavailable = function (event) {
+                if (!isMuted) {
+                  var reader = new FileReader();
+                  reader.readAsDataURL(event.data);
+                  reader.onloadend = function () {
+                    var base64data = reader.result.split(',')[1];
+                    var voiceMessage = {
+                      sender: 'User',
+                      voiceData: base64data
+                    };
+                    stompClient.send("/app/voice.send", {}, JSON.stringify(voiceMessage));
+                  }
+                }
+              };
+
+              // 음성 채팅 컨트롤 표시
+              document.getElementById('voiceControls').style.display = 'block';
+            });
+  }
+
+  // 음소거 토글
+  function toggleMute() {
+    isMuted = !isMuted;
+    var muteButton = document.getElementById('muteButton');
+    if (isMuted) {
+      muteButton.textContent = '🔇 마이크 켜기';
+    } else {
+      muteButton.textContent = '🔊 마이크 끄기';
+    }
+  }
+
+  // 나가기
+  function leaveVoiceChat() {
+    if (mediaRecorder) {
+      mediaRecorder.stop();  // MediaRecorder 중지
+    }
+    if (localStream) {
+      localStream.getTracks().forEach(track => track.stop());  // 모든 트랙 중지
+    }
+    document.getElementById('voiceControls').style.display = 'none';  // 음성 채팅 컨트롤 숨기기
+    alert("음성 채팅에서 나갔습니다.");
+  }
+
+  function playVoice(base64Data) {
+    var audio = new Audio('data:audio/ogg;base64,' + base64Data);
+    audio.play();
+  }
+</script>
+</body>
+</html>
