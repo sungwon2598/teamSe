@@ -8,12 +8,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 @Controller
 public class ChatController {
 
-    private List<String> users = new ArrayList<>();
+    private final List<String> users = new ArrayList<>();
 
     // 팝업 채팅 페이지를 제공하는 GET 매핑 추가
     @GetMapping("/popupchat")
