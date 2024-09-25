@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Stock Data Result</title>
+</head>
+<body>
+<h1>Stock Data for <span th:text="${stockData.symbol}"></span></h1>
+<p>Price: <span th:text="${stockData.price}"></span></p>
+<p>Volume: <span th:text="${stockData.volume}"></span></p>
+<p>Latest Trading Day: <span th:text="${stockData.latestTradingDay}"></span></p>
+<p>Previous Close: <span th:text="${stockData.previousClose}"></span></p>
+<p>Change: <span th:text="${stockData.change}"></span></p>
+<p>Change Percent: <span th:text="${stockData.changePercent}"></span></p>
+<a href="/">Back to Search</a>
+</body>
+</html>

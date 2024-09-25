@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Chat</title>
+    <style>
+        #videoContainer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 70vh;
+        }
+        video {
+            width: 40%;
+            margin: 10px;
+            background-color: #ddd;
+        }
+        #controls, #status {
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+<div id="joinContainer">
+    <input type="text" id="roomId" placeholder="Enter Room ID">
+    <button id="joinButton">Join Room</button>
+</div>
+<div id="videoContainer" style="display: none;">
+    <video id="localVideo" autoplay muted></video>
+    <video id="remoteVideo" autoplay></video>
+</div>
+<div id="controls" style="display: none;">
+    <button id="startButton">Start</button>
+    <button id="callButton" disabled>Call</button>
+    <button id="hangupButton" disabled>Hang Up</button>
+</div>
+<div id="status"></div>
+
+<script th:inline="javascript">
+    const joinContainer = document.getElementById('joinContainer');
+    const roomIdInput = document.getElementById('roomId');
+    const joinButton = document.getElementById('joinButton');
+    const videoContainer = document.getElementById('videoContainer');
+    const controlsContainer = document.getElementById('controls');
+    const localVideo = document.getElementById('localVideo');
+    const remoteVideo = document.getElementById('remoteVideo');
+    const startButton = document.getElementById('startButton');
+    const callButton = document.getElementById('callButton');
+    const hangupButton = document.getElementById('hangupButton');
+    const statusDiv = document.getElementById('status');
+
+    let localStream;
+    let remoteStream;
+    let peerConnection;
+    let websocket;
+    let roomId;
+    let isReconnecting = false;
+
+    const configuration = {
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    };
+
+    joinButton.onclick = joinRoom;
+    startButton.onclick = start;
+    callButton.onclick = call;
+    hangupButton.onclick = hangup;
+
+    function updateStatus(message) {
+        statusDiv.textContent = message;
+        console.log(message);
+    }
+
+    function joinRoom() {
+        roomId = roomIdInput.value;
+        if (roomId) {
+            joinContainer.style.display = 'none';
+            videoContainer.style.display = 'flex';
+            controlsContainer.style.display = 'block';
+            setupWebSocket();
+        } else {
+            alert('Please enter a Room ID');
+        }
+    }
+
+    function setupWebSocket() {
+        if (websocket) {
+            websocket.close();
+        }
+
+        websocket = new WebSocket('ws://' + window.location.host + '/signal');
+        websocket.onopen = () => {
+            updateStatus('WebSocket connected');
+            isReconnecting = false;
+            sendSignalingMessage({ type: 'join', roomId: roomId });
+        };
+        websocket.onmessage = handleSignalingMessage;
+        websocket.onerror = (error) => {
+            updateStatus('WebSocket error: ' + error);
+            scheduleReconnection();
+        };
+        websocket.onclose = () => {
+            updateStatus('WebSocket disconnected');
+            scheduleReconnection();
+        };
+    }
+
+    function scheduleReconnection() {
+        if (!isReconnecting) {
+            isReconnecting = true;
+            updateStatus('Attempting to reconnect...');
+            setTimeout(setupWebSocket, 5000);
+        }
+    }
+
+    function start() {
+        startButton.disabled = true;
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then(stream => {
+                localVideo.srcObject = stream;
+                localStream = stream;
+                callButton.disabled = false;
+                updateStatus('Local stream started');
+            })
+            .catch(e => {
+                updateStatus('Error accessing media devices: ' + e);
+            });
+    }
+
+    function call() {
+        if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+            updateStatus('WebSocket is not open. Attempting to reconnect...');
+            setupWebSocket();
+            return;
+        }
+
+        callButton.disabled = true;
+        hangupButton.disabled = false;
+
+        try {
+            peerConnection = new RTCPeerConnection(configuration);
+            peerConnection.onicecandidate = handleICECandidate;
+            peerConnection.ontrack = handleTrack;
+            peerConnection.oniceconnectionstatechange = handleICEConnectionStateChange;
+
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+            peerConnection.createOffer()
+                .then(offer => peerConnection.setLocalDescription(offer))
+                .then(() => {
+                    sendSignalingMessage({ type: 'offer', offer: peerConnection.localDescription, roomId: roomId });
+                })
+                .catch(error => {
+                    updateStatus('Error creating offer: ' + error);
+                });
+        } catch (e) {
+            updateStatus('Error starting call: ' + e);
+        }
+    }
+
+    function hangup() {
+        if (peerConnection) {
+            peerConnection.close();
+            peerConnection = null;
+        }
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+        }
+        if (remoteStream) {
+            remoteStream.getTracks().forEach(track => track.stop());
+        }
+        localStream = null;
+        remoteStream = null;
+        callButton.disabled = false;
+        hangupButton.disabled = true;
+        remoteVideo.srcObject = null;
+        updateStatus('Call ended');
+    }
+
+    function handleICECandidate(event) {
+        if (event.candidate) {
+            sendSignalingMessage({ type: 'candidate', candidate: event.candidate, roomId: roomId });
+        }
+    }
+
+    function handleTrack(event) {
+        remoteVideo.srcObject = event.streams[0];
+        remoteStream = event.streams[0];
+        updateStatus('Remote stream received');
+    }
+
+    function handleICEConnectionStateChange() {
+        if (peerConnection) {
+            updateStatus('ICE connection state: ' + peerConnection.iceConnectionState);
+        }
+    }
+
+    function sendSignalingMessage(message) {
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
+            websocket.send(JSON.stringify(message));
+        } else {
+            updateStatus('WebSocket is not open. Attempting to reconnect...');
+            setupWebSocket();
+        }
+    }
+
+    function handleSignalingMessage(event) {
+        const message = JSON.parse(event.data);
+        switch(message.type) {
+            case 'offer':
+                handleOffer(message.offer);
+                break;
+            case 'answer':
+                handleAnswer(message.answer);
+                break;
+            case 'candidate':
+                handleCandidate(message.candidate);
+                break;
+            default:
+                updateStatus('Unknown message type: ' + message.type);
+        }
+    }
+
+    function handleOffer(offer) {
+        if (!peerConnection) {
+            peerConnection = new RTCPeerConnection(configuration);
+            peerConnection.onicecandidate = handleICECandidate;
+            peerConnection.ontrack = handleTrack;
+            peerConnection.oniceconnectionstatechange = handleICEConnectionStateChange;
+
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+        }
+
+        peerConnection.setRemoteDescription(new RTCSessionDescription(offer))
+            .then(() => peerConnection.createAnswer())
+            .then(answer => peerConnection.setLocalDescription(answer))
+            .then(() => {
+                sendSignalingMessage({ type: 'answer', answer: peerConnection.localDescription, roomId: roomId });
+            })
+            .catch(error => {
+                updateStatus('Error handling offer: ' + error);
+            });
+    }
+
+    function handleAnswer(answer) {
+        peerConnection.setRemoteDescription(new RTCSessionDescription(answer))
+            .catch(error => {
+                updateStatus('Error handling answer: ' + error);
+            });
+    }
+
+    function handleCandidate(candidate) {
+        peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
+            .catch(error => {
+                updateStatus('Error adding ICE candidate: ' + error);
+            });
+    }
+</script>
+</body>
+</html>
