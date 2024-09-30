@@ -14,13 +14,14 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(signalingHandler(), "/signal")
+        registry.addHandler(signalingHandler(), "/whiteboard") // "signal로 교체하기"
                 .setAllowedOrigins("*");
     }
 
     @Bean
     public WebSocketHandler signalingHandler() {
-        return new SignalingHandler();
+//        return new SignalingHandler();
+        return new WhiteboardHandler();
     }
 
     @Bean
