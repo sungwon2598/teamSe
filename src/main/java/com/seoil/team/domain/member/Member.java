@@ -9,12 +9,14 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -22,6 +24,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 @Entity
 @Table(name = "members")
 @Getter
+@Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Member extends BaseTimeEntity implements UserDetails {
 
@@ -37,7 +40,7 @@ public class Member extends BaseTimeEntity implements UserDetails {
     @Column(nullable = false, unique = true, length = 100)
     private String email;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private String password;
 
     @Column(nullable = false, length = 50)
@@ -47,12 +50,40 @@ public class Member extends BaseTimeEntity implements UserDetails {
     @Column(nullable = false)
     private RoleType role;
 
+    @Column(nullable = true)
+    private String provider;
+
+    @Column(nullable = true)
+    private String providerId;
+
+    @Column(length = 1000)
+    private String accessToken;
+
+    @Column(length = 1000)
+    private String refreshToken;
+
+    @Column
+    private Instant tokenExpirationTime;
+
     @Builder
-    public Member(String email, String password, String name, RoleType role) {
+    public Member(String email, String password, String name, RoleType role, String provider, String providerId,
+                  String accessToken, String refreshToken, Instant tokenExpirationTime) {
         this.email = email;
         this.password = password;
         this.name = name;
         this.role = role;
+        this.provider = provider;
+        this.providerId = providerId;
+        this.accessToken = accessToken;
+        this.refreshToken = refreshToken;
+        this.tokenExpirationTime = tokenExpirationTime;
+    }
+
+    public void updateTokenInfo(String accessToken, String refreshToken, Instant tokenExpirationTime) {
+        this.accessToken = accessToken;
+        this.refreshToken = refreshToken;
+        this.tokenExpirationTime = tokenExpirationTime;
+        this.updateLastModifiedAt();
     }
 
     public void updateInfo(String name, String email) {

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Calendar Events</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .event-card {
+            margin-bottom: 20px;
+            transition: transform .2s;
+        }
+        .event-card:hover {
+            transform: scale(1.03);
+        }
+    </style>
+</head>
+<body>
+<div class="container mt-5">
+    <h1 class="mb-4">My Calendar Events</h1>
+
+    <a href="/calendar/create" class="btn btn-primary mb-4">Create New Event</a>
+
+    <div th:if="${events.empty}" class="alert alert-info">
+        No events found. Click "Create New Event" to add one!
+    </div>
+
+    <div class="row">
+        <div th:each="event : ${events}" class="col-md-4">
+            <div class="card event-card">
+                <div class="card-body">
+                    <h5 class="card-title" th:text="${event.summary}">Event Title</h5>
+                    <h6 class="card-subtitle mb-2 text-muted" th:text="${#temporals.format(event.start.dateTime, 'yyyy-MM-dd HH:mm')}">Event Date</h6>
+                    <p class="card-text" th:text="${event.description}">Event description goes here.</p>
+                    <p class="card-text">
+                        <small class="text-muted">
+                            From: <span th:text="${#temporals.format(event.start.dateTime, 'HH:mm')}"></span>
+                            To: <span th:text="${#temporals.format(event.end.dateTime, 'HH:mm')}"></span>
+                        </small>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>
