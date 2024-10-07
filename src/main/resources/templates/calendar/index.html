@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Calendar Events</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+</head>
+<body>
+<div class="container mt-5">
+    <h1>Calendar Events</h1>
+    <a href="/calendar/create" class="btn btn-primary mb-3">Create New Event</a>
+    <table class="table">
+        <thead>
+        <tr>
+            <th>Summary</th>
+            <th>Start Time</th>
+            <th>End Time</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="event : ${events}">
+            <td th:text="${event.summary}"></td>
+            <td th:text="${event.start.dateTime}"></td>
+            <td th:text="${event.end.dateTime}"></td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>
