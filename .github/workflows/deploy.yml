@@ -1,9 +1,11 @@
-name: Deploy To EC2
+name: Deploy To EC2 and Notify Slack
 
 on:
   push:
     branches:
       - main
+  pull_request:
+    types: [opened, closed]
 
 jobs:
   Deploy:
@@ -35,3 +37,18 @@ jobs:
             ./gradlew clean build
             sudo fuser -k -n tcp 8080 || true
             nohup java -Xms128m -Xmx256m -XX:+UseSerialGC -XX:MaxHeapFreeRatio=70 -XX:MinHeapFreeRatio=40 -XX:+UseStringDeduplication -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/home/ubuntu/heapdump.hprof -jar build/libs/*SNAPSHOT.jar > ./output.log 2>&1 &
+
+      - name: Notify Slack
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            MESSAGE="새로운 커밋이 main 브랜치에 푸시되었습니다.\n\n커밋 메시지: ${{ github.event.head_commit.message }}"
+          elif [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.event.action }}" = "opened" ]; then
+            MESSAGE="새로운 PR이 생성되었습니다.\n\nPR 번호: #${{ github.event.pull_request.number }}\n\nPR 제목: ${{ github.event.pull_request.title }}"
+          elif [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.event.action }}" = "closed" ] && [ "${{ github.event.pull_request.merged }}" = "true" ]; then
+            MESSAGE="PR이 main 브랜치에 병합되었습니다.\n\nPR 번호: #${{ github.event.pull_request.number }}\n\nPR 제목: ${{ github.event.pull_request.title }}"
+          else
+            MESSAGE="GitHub Actions 워크플로우가 실행되었습니다."
+          fi
+          curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"$MESSAGE\"}" $SLACK_WEBHOOK_URL

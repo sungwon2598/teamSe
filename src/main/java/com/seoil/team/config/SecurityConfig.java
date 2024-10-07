@@ -3,8 +3,10 @@ package com.seoil.team.config;
 import com.seoil.team.security.jwt.JwtAuthenticationFilter;
 import com.seoil.team.security.jwt.JwtAuthorizationFilter;
 import com.seoil.team.security.jwt.JwtTokenProvider;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -18,6 +20,9 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Slf4j
 @Configuration
@@ -29,16 +34,37 @@ public class SecurityConfig {
     private final JwtTokenProvider jwtTokenProvider;
     private final AuthenticationConfiguration authenticationConfiguration;
 
+//    @Value("${cors.allowed-origins}")
+//    private List<String> allowedOrigins;
+//
+//    @Value("${cors.allowed-methods}")
+//    private List<String> allowedMethods;
+//
+//    @Value("${cors.allowed-headers}")
+//    private List<String> allowedHeaders;
+//
+//    @Value("${cors.allow-credentials}")
+//    private boolean allowCredentials;
+//
+//    @Value("${cors.max-age}")
+//    private long maxAge;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/api/auth/**", "/css/**", "/*.ico",
-                                "/swagger-ui.html", "/swagger-ui/**",
-                                "/api-docs/**", "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/api/auth/**", "/css/**", "/js/**", "/*.ico", "/dashboard",
+                                "/webjars/**", "/swagger-ui.html", "/swagger-ui/**", "/actuator/**",
+                                "/mermaid/**", "/api/mermaid/**",
+                                "/api-docs/**", "/v3/api-docs/**", "/result", "/",
+                                "/video", "/signal", "/vid", // 추가된 부분
+                                "/error", "/roadmap/**", // 에러 페이지도 허용
+                                "/whiteboard"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(authenticationManager(authenticationConfiguration),
@@ -48,6 +74,22 @@ public class SecurityConfig {
                         UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(
+                List.of("http://192.168.0.26:3090", "http://localhost:3000", "http://localhost:3090"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 
     @Bean

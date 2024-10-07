@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Stock Tracker</title>
+</head>
+<body>
+<h1>Stock Tracker</h1>
+<form action="/stock" method="post">
+    <label for="symbol">Enter stock symbol:</label>
+    <input type="text" id="symbol" name="symbol" required>
+    <button type="submit">Get Stock Data</button>
+</form>
+</body>
+</html>
