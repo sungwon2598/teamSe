@@ -1,5 +1,7 @@
 package com.seoil.team.config;
 
+import com.seoil.team.security.jwt.JwtTokenProvider;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.WebSocketHandler;
@@ -10,18 +12,26 @@ import org.springframework.web.socket.server.standard.ServletServerContainerFact
 
 @Configuration
 @EnableWebSocket
+@RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketConfigurer {
+
+    private final JwtTokenProvider jwtTokenProvider;
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(signalingHandler(), "/whiteboard") // "signal로 교체하기"
+        registry.addHandler(signalingHandler(), "/signal") // "signal로 교체하기"
+                .addInterceptors(jwtHandshakeInterceptor())
                 .setAllowedOrigins("*");
     }
 
     @Bean
+    public JwtHandshakeInterceptor jwtHandshakeInterceptor() {
+        return new JwtHandshakeInterceptor(jwtTokenProvider); // JwtTokenProvider를 주입하여 생성
+    }
+
+    @Bean
     public WebSocketHandler signalingHandler() {
-//        return new SignalingHandler();
-        return new WhiteboardHandler();
+        return new SignalingHandler();
     }
 
     @Bean
