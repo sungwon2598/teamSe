@@ -61,9 +61,10 @@ public class SecurityConfig {
                                 "/webjars/**", "/swagger-ui.html", "/swagger-ui/**", "/actuator/**",
                                 "/mermaid/**", "/api/mermaid/**",
                                 "/api-docs/**", "/v3/api-docs/**", "/result", "/",
-                                "/video", "/signal", "/vid", // 추가된 부분
-                                "/error", "/roadmap/**", // 에러 페이지도 허용
-                                "/whiteboard"
+                                "/video", "/vid", // 추가된 부분
+                                "/error", "/roadmap/**",// 에러 페이지도 허용
+                                "/ws/**",//텍스트(STOMP) 채팅 경로
+                                "/signal"//일반 웹소켓 경로
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
