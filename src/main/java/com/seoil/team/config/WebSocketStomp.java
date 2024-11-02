@@ -15,19 +15,14 @@ import org.springframework.web.socket.config.annotation.WebSocketTransportRegist
 @RequiredArgsConstructor
 public class WebSocketStomp implements WebSocketMessageBrokerConfigurer {
 
-    private final JwtTokenProvider jwtTokenProvider;
+    private final JwtHandshakeInterceptor jwtHandshakeInterceptor;
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/websocket")
+        registry.addEndpoint("/ws")
                 .setAllowedOrigins("*")
-                .addInterceptors(jwtHandshakeInterceptor())
+                .addInterceptors(jwtHandshakeInterceptor)
                 .withSockJS();
-    }
-
-    @Bean
-    public JwtHandshakeInterceptor jwtHandshakeInterceptor() {
-        return new JwtHandshakeInterceptor(jwtTokenProvider);
     }
 
     @Override
