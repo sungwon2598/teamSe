@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Create Calendar Event</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+</head>
+<body>
+<div class="container mt-5">
+    <h1>Create Calendar Event</h1>
+    <form action="/calendar/create" method="post">
+        <div class="form-group">
+            <label for="summary">Summary</label>
+            <input type="text" class="form-control" id="summary" name="summary" required>
+        </div>
+        <div class="form-group">
+            <label for="description">Description</label>
+            <textarea class="form-control" id="description" name="description"></textarea>
+        </div>
+        <div class="form-group">
+            <label for="start">Start Time</label>
+            <input type="datetime-local" class="form-control" id="start" name="start.dateTime" required>
+        </div>
+        <div class="form-group">
+            <label for="end">End Time</label>
+            <input type="datetime-local" class="form-control" id="end" name="end.dateTime" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Create Event</button>
+    </form>
+</div>
+<script>
+    // Set default values for start and end time
+    document.addEventListener('DOMContentLoaded', function() {
+        var now = new Date();
+        var year = now.getFullYear();
+        var month = (now.getMonth() + 1).toString().padStart(2, '0');
+        var day = now.getDate().toString().padStart(2, '0');
+        var hours = now.getHours().toString().padStart(2, '0');
+        var minutes = now.getMinutes().toString().padStart(2, '0');
+
+        var defaultDateTime = year + '-' + month + '-' + day + 'T' + hours + ':' + minutes;
+
+        document.getElementById('start').value = defaultDateTime;
+
+        // Set end time to 1 hour later by default
+        now.setHours(now.getHours() + 1);
+        var endHours = now.getHours().toString().padStart(2, '0');
+        var endMinutes = now.getMinutes().toString().padStart(2, '0');
+        var defaultEndDateTime = year + '-' + month + '-' + day + 'T' + endHours + ':' + endMinutes;
+
+        document.getElementById('end').value = defaultEndDateTime;
+    });
+</script>
+</body>
+</html>
