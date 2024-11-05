@@ -27,8 +27,8 @@ public class WebSocketStomp implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        registry.enableSimpleBroker("/topic", "/queue");
-        registry.setApplicationDestinationPrefixes("/app");
+        registry.enableSimpleBroker("/sub", "/queue");
+        registry.setApplicationDestinationPrefixes("/pub");
     }
 
     @Override
