@@ -19,7 +19,7 @@ public class WebSocketStomp implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws")
+        registry.addEndpoint("/ws-stomp")
                 .setAllowedOrigins("*")
                 .addInterceptors(jwtHandshakeInterceptor)
                 .withSockJS();
